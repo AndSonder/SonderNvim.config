@@ -824,6 +824,43 @@ require("lazy").setup({
         })
       end,
     },
+    {
+      "MeanderingProgrammer/render-markdown.nvim",
+      ft = { "markdown" },
+      dependencies = {
+        "nvim-treesitter/nvim-treesitter",
+        "nvim-tree/nvim-web-devicons",
+      },
+      opts = {
+        enabled = true,
+        render_modes = { "n", "c", "t" },
+        heading = {
+          enabled = true,
+          sign = false,
+        },
+        code = {
+          enabled = true,
+          sign = false,
+          width = "block",
+          border = "thin",
+          right_pad = 2,
+        },
+        bullet = {
+          enabled = true,
+          icons = { "●", "○", "◆", "◇" },
+        },
+        checkbox = {
+          enabled = true,
+        },
+        quote = {
+          enabled = true,
+        },
+        pipe_table = {
+          enabled = true,
+          preset = "round",
+        },
+      },
+    },
 
     { "williamboman/mason.nvim", opts = {} },
     {

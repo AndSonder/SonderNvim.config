@@ -326,6 +326,9 @@ local function toggle_cmd_p_finder()
 end
 
 map("n", "<leader>ff", "<Cmd>Telescope find_files<CR>", { desc = "Find files" })
+map("n", "<leader>f", function()
+  require("telescope.builtin").current_buffer_fuzzy_find()
+end, { desc = "Find in current file" })
 map({ "n", "i" }, "<leader>p", toggle_cmd_p_finder, { desc = "Toggle file finder (cmd+p)" })
 map({ "n", "i" }, "<D-p>", toggle_cmd_p_finder, { desc = "Toggle file finder (cmd+p)" })
 map("n", "<leader>fg", "<Cmd>Telescope live_grep<CR>", { desc = "Live grep" })
@@ -518,7 +521,7 @@ local function on_attach(_, bufnr)
   bmap("K", vim.lsp.buf.hover, "LSP hover")
   bmap("<leader>rr", vim.lsp.buf.rename, "LSP rename")
   bmap("<leader>ac", vim.lsp.buf.code_action, "LSP code action")
-  bmap("<leader>f", function() vim.lsp.buf.format({ async = true }) end, "Format file")
+  bmap("<leader>cf", function() vim.lsp.buf.format({ async = true }) end, "Format file")
   bmap("[d", vim.diagnostic.goto_prev, "Prev diagnostic")
   bmap("]d", vim.diagnostic.goto_next, "Next diagnostic")
 end
@@ -808,6 +811,7 @@ require("lazy").setup({
 
     {
       "nvim-treesitter/nvim-treesitter",
+      branch = "master",
       build = ":TSUpdate",
       config = function()
         require("nvim-treesitter.configs").setup({

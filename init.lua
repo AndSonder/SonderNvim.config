@@ -871,7 +871,7 @@ require("lazy").setup({
       "folke/sidekick.nvim",
       opts = {},
       keys = {
-        { "<leader>ca", function() require("sidekick.cli").toggle({ name = "codex", focus = true }) end, desc = "Toggle Codex CLI" },
+        { "<leader>co", function() require("sidekick.cli").toggle({ name = "codex", focus = true }) end, desc = "Toggle Codex CLI" },
         { "<leader>cd", function() require("sidekick.cli").close() end, desc = "Close Codex CLI" },
         {
           "<leader>cs",
@@ -879,7 +879,7 @@ require("lazy").setup({
           mode = { "x" },
           desc = "Send Selection to Codex",
         },
-        { "<leader>cf", function() require("sidekick.cli").send({ msg = "{file}" }) end, desc = "Send File to Codex" },
+        { "<leader>cF", function() require("sidekick.cli").send({ msg = "{file}" }) end, desc = "Send File to Codex" },
         {
           "<C-.>",
           function() require("sidekick.cli").focus() end,

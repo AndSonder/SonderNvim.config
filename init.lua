@@ -274,7 +274,11 @@ map("n", "<leader>W", "<Cmd>wa<CR>", { desc = "Save all" })
 map("n", "<leader>q", "<Cmd>q<CR>", { desc = "Quit" })
 map("n", "<leader>Q", "<Cmd>qa<CR>", { desc = "Quit all" })
 map("n", "<leader>h", "<Cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
-map({ "n", "v" }, "<leader>a", "ggVG", { desc = "Select all" })
+local function select_all_text()
+  vim.cmd("normal! ggVG")
+end
+
+map({ "n", "v" }, "<leader>a", select_all_text, { desc = "Select all" })
 map("v", "<D-c>", '"+y', { desc = "Copy selection" })
 
 local function send_visual_selection_to_codex()

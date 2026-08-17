@@ -274,6 +274,8 @@ map("n", "<leader>W", "<Cmd>wa<CR>", { desc = "Save all" })
 map("n", "<leader>q", "<Cmd>q<CR>", { desc = "Quit" })
 map("n", "<leader>Q", "<Cmd>qa<CR>", { desc = "Quit all" })
 map("n", "<leader>h", "<Cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
+map({ "n", "v" }, "<leader>a", "ggVG", { desc = "Select all" })
+map("v", "<D-c>", '"+y', { desc = "Copy selection" })
 
 local function send_visual_selection_to_codex()
   local start_row = vim.fn.getpos("'<")[2]

@@ -861,6 +861,29 @@ require("lazy").setup({
         },
       },
     },
+    {
+      "johnseth97/codex.nvim",
+      cmd = { "Codex", "CodexToggle" },
+      keys = {
+        {
+          "<leader>cc",
+          function()
+            require("codex").toggle()
+          end,
+          mode = { "n", "v", "t" },
+          desc = "Toggle Codex",
+        },
+      },
+      opts = {
+        autoinstall = false,
+        panel = true,
+        border = "rounded",
+        keymaps = {
+          toggle = nil,
+          quit = "<C-q>",
+        },
+      },
+    },
 
     { "williamboman/mason.nvim", opts = {} },
     {

@@ -275,6 +275,49 @@ map("n", "<leader>q", "<Cmd>q<CR>", { desc = "Quit" })
 map("n", "<leader>Q", "<Cmd>qa<CR>", { desc = "Quit all" })
 map("n", "<leader>h", "<Cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 
+local function send_visual_selection_to_codex()
+  local start_row = vim.fn.getpos("'<")[2]
+  local end_row = vim.fn.getpos("'>")[2]
+  if start_row == 0 or end_row == 0 then
+    vim.notify("No visual selection to send", vim.log.levels.WARN)
+    return
+  end
+
+  if start_row > end_row then
+    start_row, end_row = end_row, start_row
+  end
+
+  local lines = vim.api.nvim_buf_get_lines(0, start_row - 1, end_row, false)
+  if #lines == 0 then
+    vim.notify("No visual selection to send", vim.log.levels.WARN)
+    return
+  end
+
+  local filename = vim.fn.expand("%:~")
+  local filetype = vim.bo.filetype ~= "" and vim.bo.filetype or "text"
+  local prompt = table.concat({
+    string.format("Selected code from %s (lines %d-%d):", filename, start_row, end_row),
+    "```" .. filetype,
+    table.concat(lines, "\n"),
+    "```",
+    "",
+    "Question: ",
+  }, "\n")
+
+  require("codex").open()
+  vim.defer_fn(function()
+    local state = require("codex.state")
+    if not state.job then
+      vim.notify("Codex terminal is not ready", vim.log.levels.WARN)
+      return
+    end
+    local bracketed_paste = "\027[200~" .. prompt .. "\027[201~"
+    vim.api.nvim_chan_send(state.job, bracketed_paste)
+  end, 100)
+end
+
+map("x", "<leader>cc", send_visual_selection_to_codex, { desc = "Send selection to Codex" })
+
 local function toggle_terminal()
   local term_win = nil
   for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -870,7 +913,7 @@ require("lazy").setup({
           function()
             require("codex").toggle()
           end,
-          mode = { "n", "v", "t" },
+          mode = { "n", "t" },
           desc = "Toggle Codex",
         },
       },

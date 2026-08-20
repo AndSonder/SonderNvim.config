@@ -534,7 +534,7 @@ end
 
 function _G.sonder_close_buffer(bufnr)
   local target = bufnr and tonumber(bufnr) or vim.api.nvim_get_current_buf()
-  if not target then
+  if not target or not vim.api.nvim_buf_is_valid(target) then
     return
   end
 
@@ -543,28 +543,25 @@ function _G.sonder_close_buffer(bufnr)
       and vim.api.nvim_get_option_value("buflisted", { buf = id })
   end, vim.api.nvim_list_bufs())
 
-  local current_buf = vim.api.nvim_get_current_buf()
-  local is_last_listed = #listed_buffers <= 1
-
-  if current_buf == target and is_last_listed then
-    local ok = pcall(vim.cmd, "enew")
-    if not ok then
-      vim.notify("Need at least one empty buffer to avoid quitting", vim.log.levels.WARN, { title = "Buffer close" })
-      return
+  if vim.api.nvim_get_current_buf() == target then
+    local replacement
+    for _, id in ipairs(listed_buffers) do
+      if id ~= target then
+        replacement = id
+        break
+      end
     end
 
-    -- Keep the old buffer alive but out of the tabline. Some terminal UIs exit
-    -- when the final file buffer is deleted, even after :enew has switched away.
-    vim.api.nvim_set_option_value("buflisted", false, { buf = target })
-    return
+    if replacement then
+      vim.api.nvim_set_current_buf(replacement)
+    else
+      vim.cmd("enew")
+    end
   end
 
-  local deleted = pcall(vim.api.nvim_buf_delete, target, { force = false })
-  if not deleted then
-    vim.notify("Buffer delete failed (maybe unsaved changes)", vim.log.levels.WARN, { title = "Buffer close" })
-    return
-  end
-
+  -- Hiding the buffer removes its tab without destroying the buffer. This
+  -- keeps embedded Neovim hosts alive and preserves unsaved changes.
+  vim.api.nvim_set_option_value("buflisted", false, { buf = target })
 end
 
 local function patch_bufferline_safe_close()

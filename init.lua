@@ -840,17 +840,19 @@ require("lazy").setup({
         heading = {
           enabled = true,
           sign = false,
+          icons = { "", "", "", "", "", "" },
+          width = "block",
+          backgrounds = { "Normal" },
         },
         code = {
           enabled = true,
           sign = false,
-          width = "block",
-          border = "thin",
-          right_pad = 2,
+          width = "full",
+          border = "hide",
         },
         bullet = {
           enabled = true,
-          icons = { "●", "○", "◆", "◇" },
+          icons = { "•" },
         },
         checkbox = {
           enabled = true,
@@ -860,8 +862,31 @@ require("lazy").setup({
         },
         pipe_table = {
           enabled = true,
-          preset = "round",
+          preset = "none",
         },
+      },
+    },
+    {
+      "3rd/image.nvim",
+      ft = { "markdown" },
+      build = false,
+      init = function()
+        vim.env.PATH = "/opt/homebrew/opt/imagemagick-full/bin:" .. vim.env.PATH
+      end,
+      opts = {
+        backend = "kitty",
+        processor = "magick_cli",
+        integrations = {
+          markdown = {
+            enabled = true,
+            clear_in_insert_mode = false,
+            download_remote_images = true,
+            only_render_image_at_cursor = false,
+            floating_windows = false,
+          },
+        },
+        max_width_window_percentage = 80,
+        max_height_window_percentage = 50,
       },
     },
     {

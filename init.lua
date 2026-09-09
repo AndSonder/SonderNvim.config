@@ -25,6 +25,7 @@ vim.o.softtabstop = 2
 vim.o.smartindent = true
 vim.o.breakindent = true
 vim.o.wrap = false
+vim.opt.scrollopt = { "ver", "hor", "jump" }
 vim.o.splitright = true
 vim.o.splitbelow = true
 vim.o.laststatus = 3
@@ -37,6 +38,23 @@ vim.o.listchars = "tab:┆ ,trail:·,nbsp:·"
 vim.o.undofile = true
 vim.o.swapfile = false
 vim.o.backup = false
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "markdown",
+  callback = function()
+    vim.opt_local.wrap = true
+    vim.opt_local.linebreak = true
+    vim.opt_local.breakindent = true
+  end,
+})
+
+-- Keep Normal mode commands on an English input source, including after
+-- returning from browser-based previews.
+vim.api.nvim_create_autocmd({ "InsertLeave", "FocusGained" }, {
+  callback = function()
+    vim.fn.jobstart({ "/opt/homebrew/bin/macism", "com.apple.keylayout.ABC" }, { detach = true })
+  end,
+})
 
 -- Theme (fallback)
 vim.o.background = "dark"
@@ -340,8 +358,8 @@ map({ "n", "i" }, "<D-p>", toggle_cmd_p_finder, { desc = "Toggle file finder (cm
 map("n", "<leader>fg", "<Cmd>Telescope live_grep<CR>", { desc = "Live grep" })
 map("n", "<leader>fb", "<Cmd>Telescope buffers<CR>", { desc = "Buffers" })
 map("n", "<leader>fh", "<Cmd>Telescope help_tags<CR>", { desc = "Help tags" })
-map("n", "<leader>gq", "<Cmd>DiffviewOpen<CR>", { desc = "Git diff: open" })
-map("n", "<leader>gD", "<Cmd>Gitsigns diffthis<CR>", { desc = "Git diff: current file vs HEAD" })
+map("n", "<leader>gq", "<Cmd>DiffviewOpen HEAD<CR>", { desc = "Git diff: all changes vs HEAD (side by side)" })
+map("n", "<leader>gD", "<Cmd>DiffviewOpen HEAD -- %<CR>", { desc = "Git diff: current file vs HEAD (side by side)" })
 map("n", "<leader>gx", "<Cmd>DiffviewClose<CR>", { desc = "Git diff: close" })
 map("n", "<leader>gH", "<Cmd>DiffviewFileHistory %<CR>", { desc = "Git diff: file history (current file)" })
 local function neotree_git_repo_root()
@@ -502,8 +520,13 @@ map("n", "<leader>gp", function()
   require("gitsigns").preview_hunk()
 end, { desc = "Git: preview hunk" })
 map("n", "<leader>gd", function()
-  require("gitsigns").diffthis()
-end, { desc = "Git: diff current buffer" })
+  local file = vim.fn.expand("%:p")
+  if file == "" or vim.bo.buftype ~= "" then
+    vim.notify("No normal file buffer selected", vim.log.levels.WARN, { title = "Git diff" })
+    return
+  end
+  vim.cmd(("DiffviewOpen HEAD -- %s"):format(vim.fn.fnameescape(file)))
+end, { desc = "Git diff: current file vs HEAD (side by side)" })
 
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -674,6 +697,65 @@ require("lazy").setup({
             },
           },
         },
+        git_status = {
+          commands = {
+            open_diff = function(state)
+              local node = state.tree:get_node()
+              if not node then
+                return
+              end
+              if node.type == "directory" then
+                require("neo-tree.sources.common.commands").toggle_node(state)
+                return
+              end
+
+              for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+                if vim.wo[winid].diff then
+                  local bufnr = vim.api.nvim_win_get_buf(winid)
+                  if vim.api.nvim_buf_get_name(bufnr):match("^gitsigns://") then
+                    vim.api.nvim_win_close(winid, true)
+                  else
+                    vim.wo[winid].diff = false
+                    vim.wo[winid].scrollbind = false
+                    vim.wo[winid].cursorbind = false
+                  end
+                end
+              end
+
+              require("neo-tree.sources.common.commands").open(state)
+              local editor_win = vim.api.nvim_get_current_win()
+              local bufnr = vim.api.nvim_win_get_buf(editor_win)
+              vim.schedule(function()
+                local attached = vim.wait(2000, function()
+                  return require("gitsigns.cache").cache[bufnr] ~= nil
+                end, 20)
+                if not attached then
+                  vim.notify("Gitsigns did not attach to this file", vim.log.levels.ERROR, { title = "Git diff" })
+                  return
+                end
+                if not vim.api.nvim_win_is_valid(editor_win) then
+                  return
+                end
+                if vim.api.nvim_win_get_buf(editor_win) ~= bufnr then
+                  return
+                end
+                vim.api.nvim_win_call(editor_win, function()
+                  require("gitsigns").diffthis("HEAD", {
+                    vertical = true,
+                    split = "aboveleft",
+                  })
+                end)
+              end)
+            end,
+          },
+          window = {
+            mappings = {
+              ["<2-LeftMouse>"] = "open_diff",
+              ["<cr>"] = "open_diff",
+              ["o"] = "open_diff",
+            },
+          },
+        },
       },
       keys = {
         { "<leader>e", "<cmd>Neotree toggle<cr>", desc = "Toggle file tree" },
@@ -777,7 +859,29 @@ require("lazy").setup({
       "sindrets/diffview.nvim",
       dependencies = { "nvim-lua/plenary.nvim" },
       cmd = { "DiffviewOpen", "DiffviewClose", "DiffviewFileHistory", "DiffviewToggleFiles" },
-      config = true,
+      opts = {
+        enhanced_diff_hl = true,
+        hooks = {
+          diff_buf_win_enter = function(_, winid)
+            vim.wo[winid].scrollbind = true
+            vim.wo[winid].cursorbind = true
+            vim.wo[winid].wrap = false
+          end,
+          view_post_layout = function()
+            vim.schedule(function()
+              vim.cmd("syncbind")
+            end)
+          end,
+        },
+        view = {
+          default = {
+            layout = "diff2_horizontal",
+          },
+          file_history = {
+            layout = "diff2_horizontal",
+          },
+        },
+      },
     },
     {
       "NeogitOrg/neogit",
@@ -819,7 +923,7 @@ require("lazy").setup({
       config = function()
         require("nvim-treesitter.configs").setup({
           ensure_installed = {
-            "bash", "cmake", "cpp", "json", "lua", "markdown", "python", "yaml", "vim", "vimdoc"
+            "bash", "cmake", "cpp", "json", "lua", "markdown", "markdown_inline", "python", "yaml", "vim", "vimdoc"
           },
           sync_install = false,
           highlight = { enable = true },
@@ -828,42 +932,11 @@ require("lazy").setup({
       end,
     },
     {
-      "MeanderingProgrammer/render-markdown.nvim",
+      dir = vim.fn.stdpath("config") .. "/docusaurus-preview",
+      name = "docusaurus-preview",
       ft = { "markdown" },
-      dependencies = {
-        "nvim-treesitter/nvim-treesitter",
-        "nvim-tree/nvim-web-devicons",
-      },
-      opts = {
-        enabled = true,
-        render_modes = { "n", "c", "t" },
-        heading = {
-          enabled = true,
-          sign = false,
-          icons = { "", "", "", "", "", "" },
-          width = "block",
-          backgrounds = { "Normal" },
-        },
-        code = {
-          enabled = true,
-          sign = false,
-          width = "full",
-          border = "hide",
-        },
-        bullet = {
-          enabled = true,
-          icons = { "•" },
-        },
-        checkbox = {
-          enabled = true,
-        },
-        quote = {
-          enabled = true,
-        },
-        pipe_table = {
-          enabled = true,
-          preset = "none",
-        },
+      keys = {
+        { "<leader>mp", function() require("docusaurus-preview").open() end, desc = "Docusaurus preview" },
       },
     },
     {

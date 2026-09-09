@@ -49,6 +49,16 @@ else
   info "Linked ${NVIM_DIR}/init.lua -> ${REPO_INIT}"
 fi
 
+DOCUSAURUS_PREVIEW_DIR="${NVIM_DIR}/docusaurus-preview"
+if [ -f "${DOCUSAURUS_PREVIEW_DIR}/package-lock.json" ]; then
+  if command -v npm >/dev/null 2>&1; then
+    info "Installing Docusaurus preview dependencies..."
+    (cd "$DOCUSAURUS_PREVIEW_DIR" && npm ci)
+  else
+    warn "npm not found; Docusaurus Markdown preview will be unavailable"
+  fi
+fi
+
 info "Done. Start Neovim and run once to let lazy.nvim bootstrap plugins."
 info "If you want to sync plugins now, run:"
 info "  nvim --headless '+Lazy! sync' +qa"

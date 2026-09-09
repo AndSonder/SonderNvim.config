@@ -1,0 +1,37 @@
+:root {
+  --site-primary-hue-saturation: 167 68%;
+  --site-primary-hue-saturation-light: 167 56%;
+  --ifm-font-family-base: Optima-Regular, Optima, PingFangSC-Light, sans-serif !important;
+}
+
+[data-theme='light'] {
+  --ifm-color-primary: hsl(var(--site-primary-hue-saturation) 30%);
+  --ifm-color-primary-dark: hsl(var(--site-primary-hue-saturation) 26%);
+  --ifm-color-primary-darker: hsl(var(--site-primary-hue-saturation) 23%);
+  --ifm-color-primary-darkest: hsl(var(--site-primary-hue-saturation) 17%);
+  --ifm-color-primary-light: hsl(var(--site-primary-hue-saturation-light) 39%);
+  --ifm-color-primary-lighter: hsl(var(--site-primary-hue-saturation-light) 47%);
+  --ifm-color-primary-lightest: hsl(var(--site-primary-hue-saturation-light) 58%);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: hsl(var(--site-primary-hue-saturation) 45%);
+  --ifm-color-primary-dark: hsl(var(--site-primary-hue-saturation) 41%);
+  --ifm-color-primary-darker: hsl(var(--site-primary-hue-saturation) 38%);
+  --ifm-color-primary-darkest: hsl(var(--site-primary-hue-saturation) 32%);
+  --ifm-color-primary-light: hsl(var(--site-primary-hue-saturation-light) 54%);
+  --ifm-color-primary-lighter: hsl(var(--site-primary-hue-saturation-light) 62%);
+  --ifm-color-primary-lightest: hsl(var(--site-primary-hue-saturation-light) 73%);
+}
+
+.navbar__brand,
+.navbar__items {
+  min-width: 0;
+}
+
+.navbar__item {
+  max-width: min(60vw, 48rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,6 @@
+.docusaurus/
+build/
+node_modules/
+preview.log
+preview.pid
+preview.source

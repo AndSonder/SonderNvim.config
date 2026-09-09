@@ -8,6 +8,7 @@ vim.o.relativenumber = true
 vim.o.cursorline = true
 vim.o.termguicolors = true
 vim.o.signcolumn = "yes"
+vim.o.hidden = true
 vim.o.updatetime = 250
 vim.o.timeoutlen = 300
 vim.o.showmode = false
@@ -24,29 +25,48 @@ vim.o.softtabstop = 2
 vim.o.smartindent = true
 vim.o.breakindent = true
 vim.o.wrap = false
+vim.opt.scrollopt = { "ver", "hor", "jump" }
 vim.o.splitright = true
 vim.o.splitbelow = true
 vim.o.laststatus = 3
 vim.o.completeopt = "menuone,noselect"
 vim.o.cmdheight = 1
 vim.o.pumheight = 12
+vim.o.showtabline = 2
 vim.o.list = true
 vim.o.listchars = "tab:┆ ,trail:·,nbsp:·"
 vim.o.undofile = true
 vim.o.swapfile = false
 vim.o.backup = false
 
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "markdown",
+  callback = function()
+    vim.opt_local.wrap = true
+    vim.opt_local.linebreak = true
+    vim.opt_local.breakindent = true
+  end,
+})
+
+-- Keep Normal mode commands on an English input source, including after
+-- returning from browser-based previews.
+vim.api.nvim_create_autocmd({ "InsertLeave", "FocusGained" }, {
+  callback = function()
+    vim.fn.jobstart({ "/opt/homebrew/bin/macism", "com.apple.keylayout.ABC" }, { detach = true })
+  end,
+})
+
 -- Theme (fallback)
 vim.o.background = "dark"
 
 local function apply_ghostty_default_style_dark()
   local c = {
-    bg = "#282c34",
+    bg = "#1e1e2c",
     fg = "#ffffff",
     cursor = "#ffffff",
     cursor_text = "#353a44",
     selection_bg = "#ffffff",
-    selection_fg = "#282c34",
+    selection_fg = "#1e1e2c",
     black = "#1d1f21",
     red = "#cc6566",
     green = "#b6bd68",
@@ -126,6 +146,16 @@ local function apply_ghostty_default_style_dark()
   set(0, "TabLine", { fg = c.br_black, bg = c.bg })
   set(0, "TabLineFill", { fg = c.soft, bg = c.bg })
   set(0, "TabLineSel", { fg = c.fg, bg = c.soft, bold = true })
+  set(0, "BufferLineBackground", { fg = c.br_black, bg = c.bg })
+  set(0, "BufferLineBufferSelected", { fg = c.fg, bg = c.soft, bold = true })
+  set(0, "BufferLineBufferVisible", { fg = c.fg, bg = c.bg })
+  set(0, "BufferLineCloseButton", { fg = c.br_black, bg = c.bg })
+  set(0, "BufferLineCloseButtonSelected", { fg = c.br_red, bg = c.soft })
+  set(0, "BufferLineIndicatorSelected", { fg = c.yellow, bg = c.soft })
+  set(0, "BufferLineModified", { fg = c.yellow, bg = c.bg })
+  set(0, "BufferLineModifiedSelected", { fg = c.yellow, bg = c.soft })
+  set(0, "BufferLineSeparator", { fg = c.soft, bg = c.bg })
+  set(0, "BufferLineSeparatorSelected", { fg = c.soft, bg = c.soft })
 
   set(0, "DiagnosticError", { fg = c.red })
   set(0, "DiagnosticWarn", { fg = c.yellow })
@@ -262,30 +292,74 @@ map("n", "<leader>W", "<Cmd>wa<CR>", { desc = "Save all" })
 map("n", "<leader>q", "<Cmd>q<CR>", { desc = "Quit" })
 map("n", "<leader>Q", "<Cmd>qa<CR>", { desc = "Quit all" })
 map("n", "<leader>h", "<Cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
-map("n", "<leader>e", "<Cmd>Neotree toggle<CR>", { desc = "Toggle file tree" })
-local function toggle_cmd_p_finder()
-  local function is_telescope_prompt_window(win)
+local function select_all_text()
+  vim.cmd("normal! ggVG")
+end
+
+map({ "n", "v" }, "<leader>a", select_all_text, { desc = "Select all" })
+map("v", "<D-c>", '"+y', { desc = "Copy selection" })
+
+local function toggle_terminal()
+  local term_win = nil
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
     local buf = vim.api.nvim_win_get_buf(win)
-    return vim.api.nvim_get_option_value("filetype", { buf = buf }) == "TelescopePrompt"
+    local ok, bt = pcall(vim.api.nvim_get_option_value, "buftype", { buf = buf })
+    if ok and bt == "terminal" then
+      term_win = win
+      break
+    end
   end
 
+  if term_win then
+    vim.api.nvim_win_close(term_win, true)
+    return
+  end
+
+  vim.cmd("botright split")
+  vim.cmd("resize 12")
+  vim.cmd("terminal")
+  vim.cmd("startinsert")
+end
+
+map("n", "<leader>t", toggle_terminal, { desc = "Toggle terminal" })
+map("t", "<leader>t", function()
+  vim.cmd("stopinsert")
+  toggle_terminal()
+end, { desc = "Toggle terminal" })
+map("n", "<leader>e", "<Cmd>Neotree toggle<CR>", { desc = "Toggle file tree" })
+local function toggle_cmd_p_finder()
+  local function is_telescope_window(win)
+    local buf = vim.api.nvim_win_get_buf(win)
+    local ft = vim.api.nvim_get_option_value("filetype", { buf = buf })
+    return ft == "TelescopePrompt" or ft == "TelescopeResults" or ft == "TelescopePreview"
+  end
+
+  local found = false
   for _, win in ipairs(vim.api.nvim_list_wins()) do
-    if vim.api.nvim_win_is_valid(win) and is_telescope_prompt_window(win) then
+    if vim.api.nvim_win_is_valid(win) and is_telescope_window(win) then
       pcall(vim.api.nvim_win_close, win, true)
-      return
+      found = true
     end
+  end
+
+  if found then
+    return
   end
 
   require("telescope.builtin").find_files()
 end
 
 map("n", "<leader>ff", "<Cmd>Telescope find_files<CR>", { desc = "Find files" })
+map("n", "<leader>f", function()
+  require("telescope.builtin").current_buffer_fuzzy_find()
+end, { desc = "Find in current file" })
+map({ "n", "i" }, "<leader>p", toggle_cmd_p_finder, { desc = "Toggle file finder (cmd+p)" })
 map({ "n", "i" }, "<D-p>", toggle_cmd_p_finder, { desc = "Toggle file finder (cmd+p)" })
 map("n", "<leader>fg", "<Cmd>Telescope live_grep<CR>", { desc = "Live grep" })
 map("n", "<leader>fb", "<Cmd>Telescope buffers<CR>", { desc = "Buffers" })
 map("n", "<leader>fh", "<Cmd>Telescope help_tags<CR>", { desc = "Help tags" })
-map("n", "<leader>gq", "<Cmd>DiffviewOpen<CR>", { desc = "Git diff: open" })
-map("n", "<leader>gD", "<Cmd>Gitsigns diffthis<CR>", { desc = "Git diff: current file vs HEAD" })
+map("n", "<leader>gq", "<Cmd>DiffviewOpen HEAD<CR>", { desc = "Git diff: all changes vs HEAD (side by side)" })
+map("n", "<leader>gD", "<Cmd>DiffviewOpen HEAD -- %<CR>", { desc = "Git diff: current file vs HEAD (side by side)" })
 map("n", "<leader>gx", "<Cmd>DiffviewClose<CR>", { desc = "Git diff: close" })
 map("n", "<leader>gH", "<Cmd>DiffviewFileHistory %<CR>", { desc = "Git diff: file history (current file)" })
 local function neotree_git_repo_root()
@@ -431,6 +505,9 @@ map("n", "<leader>dd", vim.diagnostic.open_float, { desc = "Diagnostic float" })
 map("n", "<leader>df", vim.lsp.buf.format, { desc = "Format" })
 map("n", "<leader>rn", vim.lsp.buf.rename, { desc = "Rename" })
 map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code action" })
+map("n", "<leader>bn", "<Cmd>BufferLineCycleNext<CR>", { desc = "Next buffer tab" })
+map("n", "<leader>bp", "<Cmd>BufferLineCyclePrev<CR>", { desc = "Previous buffer tab" })
+map("n", "<leader>bc", "<Cmd>BufferLinePickClose<CR>", { desc = "Pick buffer to close" })
 map("n", "<leader>gd", vim.lsp.buf.definition, { desc = "Go to definition" })
 map("n", "<leader>gr", vim.lsp.buf.references, { desc = "References" })
 map("n", "[g", function()
@@ -443,8 +520,13 @@ map("n", "<leader>gp", function()
   require("gitsigns").preview_hunk()
 end, { desc = "Git: preview hunk" })
 map("n", "<leader>gd", function()
-  require("gitsigns").diffthis()
-end, { desc = "Git: diff current buffer" })
+  local file = vim.fn.expand("%:p")
+  if file == "" or vim.bo.buftype ~= "" then
+    vim.notify("No normal file buffer selected", vim.log.levels.WARN, { title = "Git diff" })
+    return
+  end
+  vim.cmd(("DiffviewOpen HEAD -- %s"):format(vim.fn.fnameescape(file)))
+end, { desc = "Git diff: current file vs HEAD (side by side)" })
 
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -468,14 +550,116 @@ local function on_attach(_, bufnr)
   bmap("K", vim.lsp.buf.hover, "LSP hover")
   bmap("<leader>rr", vim.lsp.buf.rename, "LSP rename")
   bmap("<leader>ac", vim.lsp.buf.code_action, "LSP code action")
-  bmap("<leader>f", function() vim.lsp.buf.format({ async = true }) end, "Format file")
+  bmap("<leader>cf", function() vim.lsp.buf.format({ async = true }) end, "Format file")
   bmap("[d", vim.diagnostic.goto_prev, "Prev diagnostic")
   bmap("]d", vim.diagnostic.goto_next, "Next diagnostic")
 end
 
+function _G.sonder_close_buffer(bufnr)
+  local target = bufnr and tonumber(bufnr) or vim.api.nvim_get_current_buf()
+  if not target or not vim.api.nvim_buf_is_valid(target) then
+    return
+  end
+
+  local listed_buffers = vim.tbl_filter(function(id)
+    return vim.api.nvim_buf_is_valid(id)
+      and vim.api.nvim_get_option_value("buflisted", { buf = id })
+  end, vim.api.nvim_list_bufs())
+
+  if vim.api.nvim_get_current_buf() == target then
+    local replacement
+    for _, id in ipairs(listed_buffers) do
+      if id ~= target then
+        replacement = id
+        break
+      end
+    end
+
+    if replacement then
+      vim.api.nvim_set_current_buf(replacement)
+    else
+      vim.cmd("enew")
+    end
+  end
+
+  -- Hiding the buffer removes its tab without destroying the buffer. This
+  -- keeps embedded Neovim hosts alive and preserves unsaved changes.
+  vim.api.nvim_set_option_value("buflisted", false, { buf = target })
+end
+
+local function patch_bufferline_safe_close()
+  local ok = pcall(require, "bufferline.commands")
+  if not ok then
+    return
+  end
+  if not _G.___bufferline_private then
+    return
+  end
+  _G.___bufferline_private.handle_close = function(id)
+    sonder_close_buffer(id)
+  end
+end
+
+pcall(vim.api.nvim_del_user_command, "SonderCloseBuffer")
+vim.api.nvim_create_user_command("SonderCloseBuffer", function(args)
+  sonder_close_buffer(args.args)
+end, { nargs = 1, desc = "Close buffer without quitting Neovim" })
+
+
 require("lazy").setup({
   spec = {
     { "nvim-tree/nvim-web-devicons" },
+    {
+      "akinsho/bufferline.nvim",
+      version = "*",
+      event = "BufWinEnter",
+      dependencies = { "nvim-tree/nvim-web-devicons" },
+      opts = {
+        options = {
+          mode = "buffers",
+          custom_filter = function(bufnr)
+            local ft = vim.api.nvim_get_option_value("buftype", { buf = bufnr })
+            return ft ~= "terminal"
+          end,
+          show_buffer_close_icons = true,
+          show_close_icon = false,
+          color_icons = true,
+          diagnostics = "nvim_lsp",
+          diagnostics_indicator = function(count, level)
+            local icon = level:match("error") and "E " or "W "
+            return icon .. count
+          end,
+          close_command = function(bufnum)
+            sonder_close_buffer(bufnum)
+          end,
+          right_mouse_command = function(bufnum)
+            sonder_close_buffer(bufnum)
+          end,
+          separator_style = "thick",
+          always_show_bufferline = true,
+          show_tab_indicators = false,
+          indicator = {
+            style = "underline",
+          },
+          max_name_length = 25,
+          max_prefix_length = 15,
+          enforce_regular_tabs = true,
+          show_buffer_icons = true,
+          get_element_icon = function(opts)
+            return require("nvim-web-devicons").get_icon(
+              opts.path,
+              opts.extension,
+              { default = false }
+            )
+          end,
+          diagnostics_update_in_insert = false,
+        },
+      },
+      config = function(_, opts)
+        require("bufferline").setup(opts)
+        vim.schedule(patch_bufferline_safe_close)
+      end,
+    },
     {
       "nvim-neo-tree/neo-tree.nvim",
       branch = "v3.x",
@@ -510,6 +694,65 @@ require("lazy").setup({
             mappings = {
               ["<bs>"] = "navigate_up",
               ["o"] = "open",
+            },
+          },
+        },
+        git_status = {
+          commands = {
+            open_diff = function(state)
+              local node = state.tree:get_node()
+              if not node then
+                return
+              end
+              if node.type == "directory" then
+                require("neo-tree.sources.common.commands").toggle_node(state)
+                return
+              end
+
+              for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+                if vim.wo[winid].diff then
+                  local bufnr = vim.api.nvim_win_get_buf(winid)
+                  if vim.api.nvim_buf_get_name(bufnr):match("^gitsigns://") then
+                    vim.api.nvim_win_close(winid, true)
+                  else
+                    vim.wo[winid].diff = false
+                    vim.wo[winid].scrollbind = false
+                    vim.wo[winid].cursorbind = false
+                  end
+                end
+              end
+
+              require("neo-tree.sources.common.commands").open(state)
+              local editor_win = vim.api.nvim_get_current_win()
+              local bufnr = vim.api.nvim_win_get_buf(editor_win)
+              vim.schedule(function()
+                local attached = vim.wait(2000, function()
+                  return require("gitsigns.cache").cache[bufnr] ~= nil
+                end, 20)
+                if not attached then
+                  vim.notify("Gitsigns did not attach to this file", vim.log.levels.ERROR, { title = "Git diff" })
+                  return
+                end
+                if not vim.api.nvim_win_is_valid(editor_win) then
+                  return
+                end
+                if vim.api.nvim_win_get_buf(editor_win) ~= bufnr then
+                  return
+                end
+                vim.api.nvim_win_call(editor_win, function()
+                  require("gitsigns").diffthis("HEAD", {
+                    vertical = true,
+                    split = "aboveleft",
+                  })
+                end)
+              end)
+            end,
+          },
+          window = {
+            mappings = {
+              ["<2-LeftMouse>"] = "open_diff",
+              ["<cr>"] = "open_diff",
+              ["o"] = "open_diff",
             },
           },
         },
@@ -616,7 +859,29 @@ require("lazy").setup({
       "sindrets/diffview.nvim",
       dependencies = { "nvim-lua/plenary.nvim" },
       cmd = { "DiffviewOpen", "DiffviewClose", "DiffviewFileHistory", "DiffviewToggleFiles" },
-      config = true,
+      opts = {
+        enhanced_diff_hl = true,
+        hooks = {
+          diff_buf_win_enter = function(_, winid)
+            vim.wo[winid].scrollbind = true
+            vim.wo[winid].cursorbind = true
+            vim.wo[winid].wrap = false
+          end,
+          view_post_layout = function()
+            vim.schedule(function()
+              vim.cmd("syncbind")
+            end)
+          end,
+        },
+        view = {
+          default = {
+            layout = "diff2_horizontal",
+          },
+          file_history = {
+            layout = "diff2_horizontal",
+          },
+        },
+      },
     },
     {
       "NeogitOrg/neogit",
@@ -653,17 +918,70 @@ require("lazy").setup({
 
     {
       "nvim-treesitter/nvim-treesitter",
+      branch = "master",
       build = ":TSUpdate",
       config = function()
         require("nvim-treesitter.configs").setup({
           ensure_installed = {
-            "bash", "cmake", "cpp", "json", "lua", "markdown", "python", "yaml", "vim", "vimdoc"
+            "bash", "cmake", "cpp", "json", "lua", "markdown", "markdown_inline", "python", "yaml", "vim", "vimdoc"
           },
           sync_install = false,
           highlight = { enable = true },
           indent = { enable = true },
         })
       end,
+    },
+    {
+      dir = vim.fn.stdpath("config") .. "/docusaurus-preview",
+      name = "docusaurus-preview",
+      ft = { "markdown" },
+      keys = {
+        { "<leader>mp", function() require("docusaurus-preview").open() end, desc = "Docusaurus preview" },
+      },
+    },
+    {
+      "3rd/image.nvim",
+      ft = { "markdown" },
+      build = false,
+      init = function()
+        vim.env.PATH = "/opt/homebrew/opt/imagemagick-full/bin:" .. vim.env.PATH
+      end,
+      opts = {
+        backend = "kitty",
+        processor = "magick_cli",
+        integrations = {
+          markdown = {
+            enabled = true,
+            clear_in_insert_mode = false,
+            download_remote_images = true,
+            only_render_image_at_cursor = false,
+            floating_windows = false,
+          },
+        },
+        max_width_window_percentage = 80,
+        max_height_window_percentage = 50,
+      },
+    },
+    {
+      "folke/sidekick.nvim",
+      opts = {},
+      keys = {
+        { "<leader>co", function() require("sidekick.cli").toggle({ name = "codex", focus = true }) end, desc = "Toggle Codex CLI" },
+        { "<leader>cd", function() require("sidekick.cli").close() end, desc = "Close Codex CLI" },
+        {
+          "<leader>cs",
+          function() require("sidekick.cli").send({ msg = "{selection}" }) end,
+          mode = { "x" },
+          desc = "Send Selection to Codex",
+        },
+        { "<leader>cF", function() require("sidekick.cli").send({ msg = "{file}" }) end, desc = "Send File to Codex" },
+        {
+          "<C-.>",
+          function() require("sidekick.cli").focus() end,
+          mode = { "n", "t", "i", "x" },
+          desc = "Sidekick Focus CLI",
+        },
+      },
     },
 
     { "williamboman/mason.nvim", opts = {} },

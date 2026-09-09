@@ -53,7 +53,7 @@ DOCUSAURUS_PREVIEW_DIR="${NVIM_DIR}/docusaurus-preview"
 if [ -f "${DOCUSAURUS_PREVIEW_DIR}/package-lock.json" ]; then
   if command -v npm >/dev/null 2>&1; then
     info "Installing Docusaurus preview dependencies..."
-    (cd "$DOCUSAURUS_PREVIEW_DIR" && npm ci)
+    (cd "$DOCUSAURUS_PREVIEW_DIR" && npm ci && npm run build)
   else
     warn "npm not found; Docusaurus Markdown preview will be unavailable"
   fi

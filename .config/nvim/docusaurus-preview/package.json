@@ -2,13 +2,15 @@
   "name": "nvim-docusaurus-preview",
   "private": true,
   "scripts": {
-    "start": "docusaurus start --no-open"
+    "build": "docusaurus build",
+    "start": "node server.js"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",
     "@docusaurus/preset-classic": "3.10.2",
     "@mdx-js/react": "^3.1.1",
     "clsx": "^2.1.1",
+    "markdown-it": "^14.1.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
